@@ -105,8 +105,6 @@ export function useMachine<
     send,
     matches,
     can,
-    можно: can,
-    нельзя: (event: TEvent) => !can(event),
     history: historyRef as Readonly<Ref<TransitionRecord<TState, TEvent>[]>>,
     isDone,
     snapshot,

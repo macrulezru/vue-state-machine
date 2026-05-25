@@ -101,8 +101,6 @@ export interface MachineInstance<
   send: (event: TEvent | EventObject<TEvent>) => Promise<void>
   matches: (state: TState | TState[] | Partial<Record<string, string>>) => boolean
   can: (event: TEvent) => boolean
-  можно: (event: TEvent) => boolean
-  нельзя: (event: TEvent) => boolean
   history: Readonly<Ref<TransitionRecord<TState, TEvent>[]>>
   isDone: ComputedRef<boolean>
   snapshot: ComputedRef<MachineSnapshot<TState, TEvent, TContext>>
