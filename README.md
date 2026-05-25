@@ -56,7 +56,7 @@ Lightweight reactive finite state machines (FSM / statechart) for Vue 3 — decl
 ## Installation
 
 ```bash
-npm install vue-state-machine
+npm install @macrulez/vue-state-machine
 ```
 
 Peer dependency:
