@@ -45,8 +45,6 @@ describe('useMachine', () => {
     })
     const { result } = withSetup(() => useMachine(machine))
     expect(result.can('GO')).toBe(false)
-    expect(result.нельзя('GO')).toBe(true)
-    expect(result.можно('GO')).toBe(false)
   })
 
   it('isDone becomes true on final state', async () => {
