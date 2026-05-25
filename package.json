@@ -1,5 +1,5 @@
 {
-  "name": "vue-state-machine",
+  "name": "@macrulez/vue-state-machine",
   "version": "0.1.0",
   "description": "Lightweight reactive finite state machines (FSM / statechart) for Vue 3",
   "keywords": [
