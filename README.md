@@ -36,7 +36,7 @@ Lightweight reactive finite state machines (FSM / statechart) for Vue 3 — decl
 ## Features
 
 - **`defineMachine()`** — pure config factory with dev-time validation; no Vue dependency — testable in Node
-- **`useMachine()`** — composable that wraps a machine in Vue reactivity; reactive `state`, `context`, `send()`, `matches()`, `can()`, `можно()`, `нельзя()`
+- **`useMachine()`** — composable that wraps a machine in Vue reactivity; reactive `state`, `context`, `send()`, `matches()`, `can()`
 - **Guards** — synchronous predicates that block transitions; exception treated as `false`
 - **Actions** — sync or async side-effects on entry, exit, or transition; return `Partial<context>` to update state
 - **Event queue** — `send()` adds to a queue and processes events sequentially; no race conditions with async actions
@@ -236,8 +236,6 @@ function useMachine<TState, TEvent, TContext>(
 | `send` | `(event: TEvent \| EventObject<TEvent>) => Promise<void>` | Queue an event; resolves after the transition completes |
 | `matches` | `(query) => boolean` | Check current state or region state (see below) |
 | `can` | `(event: TEvent) => boolean` | `true` if the event would trigger a transition (guard evaluated synchronously) |
-| `можно` | `(event: TEvent) => boolean` | Alias for `can()` |
-| `нельзя` | `(event: TEvent) => boolean` | Alias for `!can()` |
 | `history` | `Readonly<Ref<TransitionRecord[]>>` | Past transitions, newest last |
 | `isDone` | `ComputedRef<boolean>` | `true` when the current state has `type: 'final'` |
 | `snapshot` | `ComputedRef<MachineSnapshot>` | Serializable snapshot of `{ state, context, history }` |
@@ -274,10 +272,10 @@ matches({ validation: 'invalid' })       // true if region 'validation' is in 'i
 `can()` evaluates the guard synchronously without side-effects. Use it to enable/disable buttons:
 
 ```ts
-const { can, нельзя } = useMachine(loginForm)
+const { can } = useMachine(loginForm)
 
 // In template
-// :disabled="нельзя('RETRY')"
+// :disabled="!can('RETRY')"
 ```
 
 > **Important:** Guards used with `can()` must be synchronous and free of side-effects. This is a deliberate contract — `can()` is called reactively and must not trigger async operations.
@@ -743,7 +741,7 @@ useMachine(config, options)
     │  context: shallowRef<TContext>
     │  history: shallowRef<TransitionRecord[]>  (FIFO, historyLimit)
     │  send()   → enqueue → sync refs after result
-    │  matches() / can() / можно() / нельзя()
+    │  matches() / can()
     │  snapshot / restore()
     │  onMounted: load persist snapshot
     │  on transition: save persist snapshot
