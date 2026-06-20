@@ -1,19 +1,26 @@
 {
   "name": "@macrulez/vue-state-machine",
-  "version": "0.1.4",
-  "description": "Lightweight reactive finite state machines (FSM / statechart) for Vue 3",
+  "version": "0.1.5",
+  "description": "Reactive finite state machines and statecharts for Vue 3 — declarative transitions, parallel regions, guards, actions and persistence.",
+  "author": "macrulez <macrulezru@gmail.com> (https://macrulez.ru/en)",
+  "license": "MIT",
   "keywords": [
     "vue",
     "vue3",
     "state-machine",
     "fsm",
     "statechart",
-    "composable"
+    "composable",
+    "reactive",
+    "typescript"
   ],
-  "license": "MIT",
+  "homepage": "https://github.com/macrulezru/vue-state-machine#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/macrulezru/vue-state-machine"
+    "url": "git+https://github.com/macrulezru/vue-state-machine.git"
+  },
+  "bugs": {
+    "url": "https://github.com/macrulezru/vue-state-machine/issues"
   },
   "sideEffects": false,
   "type": "module",
@@ -22,25 +29,30 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
-      "require": "./dist/index.cjs",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/index.cjs"
     },
     "./devtools": {
+      "types": "./dist/devtools/index.d.ts",
       "import": "./dist/devtools/index.mjs",
-      "require": "./dist/devtools/index.cjs",
-      "types": "./dist/devtools/index.d.ts"
+      "require": "./dist/devtools/index.cjs"
     }
   },
   "files": [
     "dist",
     "README.md",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "LICENSE"
   ],
+  "engines": {
+    "node": ">=18"
+  },
   "publishConfig": {
     "access": "public"
   },
   "scripts": {
+    "prepublishOnly": "npm run build",
     "build": "vite build",
     "test": "vitest run",
     "test:watch": "vitest",
