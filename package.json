@@ -1,6 +1,6 @@
 {
   "name": "@macrulez/vue-state-machine",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Reactive finite state machines and statecharts for Vue 3 — declarative transitions, parallel regions, guards, actions and persistence.",
   "author": "macrulez <macrulezru@gmail.com> (https://macrulez.ru/en)",
   "license": "MIT",
@@ -14,7 +14,7 @@
     "reactive",
     "typescript"
   ],
-  "homepage": "https://github.com/macrulezru/vue-state-machine#readme",
+  "homepage": "https://npm.vuecraft.ru/en/packages/vue-state-machine/",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/macrulezru/vue-state-machine.git"

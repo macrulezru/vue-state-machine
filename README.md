@@ -1,13 +1,6 @@
-<div align="center" style="background:#111827;border-radius:20px;padding:28px 20px 20px;margin-bottom:32px">
-  <h1 style="color:#f9fafb;margin:0 0 32px;font-size:2.2em;letter-spacing:-0.03em;font-weight:700;font-family:sans-serif">
-    vue-state-machine
-  </h1>
-  <img
-    src="https://s3.twcstorage.ru/c9a2cc89-780f97fd-311d-4a1a-b86f-c25665c9dc46/images/npm/vue-state-machine.webp"
-    alt="vue-virtual-scroller-kit"
-    style="max-width:100%;width:auto;height:300px;border-radius:12px"
-  />
-</div>
+# **State Machine**
+
+![State Machine](https://github.com/macrulezru/assets/blob/master/packages-images/vue-state-machine.png?raw=true)
 
 Lightweight reactive finite state machines (FSM / statechart) for Vue 3 — declarative states and transitions, parallel regions, guards, actions, persist, and a composable API — with a single peer dependency.
 
@@ -881,7 +874,7 @@ MIT
 
 Danil Lisin Vladimirovich aka Macrulez
 
-GitHub: [macrulezru](https://github.com/macrulezru) · Website: [macrulez.ru/en](https://macrulez.ru/en)
+GitHub: [macrulezru](https://github.com/macrulezru) · Website: [npm.vuecraft.ru/en/](https://npm.vuecraft.ru/en/packages/vue-state-machine/)
 
 Questions and bugs — [issues](https://github.com/macrulezru/vue-state-machine/issues)
 
