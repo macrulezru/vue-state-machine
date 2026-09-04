@@ -67,6 +67,91 @@ const { state, send } = useMachine(trafficLight)
 
 `state` is a reactive `Ref<'red' | 'green' | 'yellow'>`. Clicking the button transitions the machine and Vue re-renders automatically.
 
+### More examples
+
+#### A machine with context, guards, and actions
+
+A guard blocks the transition once there are already 3 attempts, an action increments the counter and clears the error — the form's logic lives declaratively in one place, not scattered across handlers.
+
+```ts
+import { defineMachine } from 'vue-state-machine'
+import type { Action, Guard } from 'vue-state-machine'
+
+type Ctx = { attempts: number; error: string | null }
+type Ev = 'SUBMIT' | 'SUCCESS' | 'FAILURE' | 'RETRY'
+
+const resetError: Action<Ctx, Ev> = () => ({ error: null })
+const incrementAttempts: Action<Ctx, Ev> = (ctx) => ({ attempts: ctx.attempts + 1 })
+const canRetry: Guard<Ctx, Ev> = (ctx) => ctx.attempts < 3
+
+export const loginMachine = defineMachine<'idle' | 'loading' | 'error' | 'success', Ev, Ctx>({
+  id: 'login',
+  initial: 'idle',
+  context: { attempts: 0, error: null },
+  states: {
+    idle: { on: { SUBMIT: { target: 'loading', actions: [resetError] } } },
+    loading: {
+      on: {
+        SUCCESS: { target: 'success' },
+        FAILURE: { target: 'error', actions: [incrementAttempts] },
+      },
+    },
+    error: { on: { RETRY: { target: 'idle', guard: canRetry } } },
+    success: { type: 'final' },
+  },
+})
+```
+
+#### Wiring it into a component
+
+`send()` returns a promise that resolves once the transition finishes, `can()` synchronously checks whether an event would fire, `isDone` flips on the final state — all reactive, no manual computed properties.
+
+```ts
+import { useMachine } from 'vue-state-machine'
+import { loginMachine } from './machine'
+
+const { state, context, send, can, isDone } = useMachine(loginMachine)
+
+async function submit() {
+  await send('SUBMIT')
+  try {
+    await api.login()
+    send('SUCCESS')
+  } catch (e) {
+    send({ type: 'FAILURE', message: String(e) })
+  }
+}
+
+// state.value === 'error'  ->  `Failed. Attempts: ${context.value.attempts}/3`
+// can('RETRY')             ->  whether the Retry button should be enabled
+// isDone.value             ->  true once login succeeds
+```
+
+#### A multi-step wizard, no machine of your own
+
+`useWizard` builds the machine from a steps array on its own — `canProceed` blocks `next()` until required fields are filled in, and `progress` comes ready-made.
+
+```ts
+import { useWizard } from 'vue-state-machine'
+import type { WizardStep } from 'vue-state-machine'
+
+interface CheckoutCtx {
+  name: string
+  email: string
+  address: string
+}
+
+const steps: WizardStep<CheckoutCtx>[] = [
+  { id: 'info', label: 'Your info', canProceed: (ctx) => !!ctx.name && !!ctx.email },
+  { id: 'address', label: 'Delivery', canProceed: (ctx) => !!ctx.address },
+]
+
+const { currentStep, progress, next, prev, isLast } = useWizard(steps)
+
+// next() calls canProceed first and returns false if it's blocked — no
+// manual validation gate before advancing to the next step.
+```
+
 ---
 
 ## Documentation & links
