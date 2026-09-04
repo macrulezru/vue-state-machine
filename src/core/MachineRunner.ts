@@ -27,7 +27,7 @@ export class MachineRunner<
   constructor(config: MachineConfig<TState, TEvent, TContext>) {
     this.config = config
     this.state = config.initial
-    this.context = config.context ? { ...config.context } : ({} as TContext)
+    this.context = config.context ? cloneContext(config.context) : ({} as TContext)
     this.activateParallelRegions(this.state)
   }
 
@@ -91,15 +91,21 @@ export class MachineRunner<
 
   async transition(event: EventObject<TEvent>): Promise<TransitionResult<TState, TContext>> {
     if (this.config.states[this.state]?.type === 'final') {
-      return { nextState: this.state, nextContext: this.context, executed: [], changed: false }
+      return { nextState: this.state, nextContext: this.context, executed: [], changed: false, contextPatch: {} }
     }
 
     const stateConfig = this.config.states[this.state]
     const transitionConfig = stateConfig?.on?.[event.type]
 
     if (!transitionConfig) {
-      await this.dispatchToRegions(event)
-      return { nextState: this.state, nextContext: this.context, executed: [], changed: false }
+      const regionsResult = await this.dispatchToRegions(event)
+      return {
+        nextState: this.state,
+        nextContext: this.context,
+        executed: [],
+        changed: regionsResult.changed,
+        contextPatch: regionsResult.contextPatch,
+      }
     }
 
     if (transitionConfig.guard) {
@@ -110,22 +116,29 @@ export class MachineRunner<
         allowed = false
       }
       if (!allowed) {
-        return { nextState: this.state, nextContext: this.context, executed: [], changed: false }
+        return { nextState: this.state, nextContext: this.context, executed: [], changed: false, contextPatch: {} }
       }
     }
 
     const executed: string[] = []
+    let contextPatch: Partial<TContext> = {}
     this.deactivateParallelRegions()
 
     for (const action of stateConfig.exit ?? []) {
       const partial = await action(this.context, event)
-      if (partial) this.mergeContext(partial)
+      if (partial) {
+        this.mergeContext(partial)
+        contextPatch = { ...contextPatch, ...partial }
+      }
       executed.push(action.name || 'exit')
     }
 
     for (const action of transitionConfig.actions ?? []) {
       const partial = await action(this.context, event)
-      if (partial) this.mergeContext(partial)
+      if (partial) {
+        this.mergeContext(partial)
+        contextPatch = { ...contextPatch, ...partial }
+      }
       executed.push(action.name || 'action')
     }
 
@@ -134,17 +147,20 @@ export class MachineRunner<
 
     for (const action of this.config.states[this.state]?.entry ?? []) {
       const partial = await action(this.context, event)
-      if (partial) this.mergeContext(partial)
+      if (partial) {
+        this.mergeContext(partial)
+        contextPatch = { ...contextPatch, ...partial }
+      }
       executed.push(action.name || 'entry')
     }
 
-    return { nextState: this.state, nextContext: this.context, executed, changed: true }
+    return { nextState: this.state, nextContext: this.context, executed, changed: true, contextPatch }
   }
 
   restore(state: TState, context: TContext): void {
     this.deactivateParallelRegions()
     this.state = state
-    this.context = { ...context }
+    this.context = cloneContext(context)
     this.activateParallelRegions(state)
   }
 
@@ -166,31 +182,63 @@ export class MachineRunner<
     this.regionRunners.clear()
   }
 
-  private async dispatchToRegions(event: EventObject<TEvent>): Promise<void> {
-    if (this.regionRunners.size === 0) return
+  private async dispatchToRegions(
+    event: EventObject<TEvent>,
+  ): Promise<{ changed: boolean; contextPatch: Partial<TContext> }> {
+    if (this.regionRunners.size === 0) return { changed: false, contextPatch: {} }
 
     const contextPatches: Array<{ regionName: string; patch: Partial<TContext> }> = []
+    let anyRegionChanged = false
 
     for (const [regionName, runner] of this.regionRunners) {
       const result = await runner.transition(event as EventObject<string>)
       if (result.changed) {
-        const patch = result.nextContext as unknown as Partial<TContext>
-        const conflictKeys = Object.keys(patch).filter(
-          (k) => contextPatches.some((p) => k in p.patch),
-        )
-        if (conflictKeys.length > 0 && import.meta.env?.DEV !== false) {
-          console.warn(
-            `[vue-state-machine] Parallel regions context conflict on field(s): ${conflictKeys.join(', ')}. Region "${regionName}" wins (declared last).`,
+        anyRegionChanged = true
+        // Only the fields this region's actions actually touched — not its
+        // whole (possibly stale-for-other-fields) context snapshot — so an
+        // untouched field can never be clobbered by another region below.
+        const patch = result.contextPatch as unknown as Partial<TContext>
+        if (Object.keys(patch).length > 0) {
+          const conflictKeys = Object.keys(patch).filter(
+            (k) => contextPatches.some((p) => k in p.patch),
           )
+          if (conflictKeys.length > 0 && import.meta.env?.DEV !== false) {
+            console.warn(
+              `[vue-state-machine] Parallel regions context conflict on field(s): ${conflictKeys.join(', ')}. Region "${regionName}" wins (declared last).`,
+            )
+          }
+          contextPatches.push({ regionName, patch })
         }
-        contextPatches.push({ regionName, patch })
         runner['context'] = result.nextContext as TContext
       }
     }
 
+    // Accumulated across regions the same way transition()'s own loops do —
+    // later regions' patches win on a shared key when merged below, matching
+    // the "last region wins" contract this class already documents.
+    let mergedPatch: Partial<TContext> = {}
     for (const { patch } of contextPatches) {
       this.mergeContext(patch)
+      mergedPatch = { ...mergedPatch, ...patch }
     }
+
+    return { changed: anyRegionChanged, contextPatch: mergedPatch }
+  }
+}
+
+/**
+ * Structured-clone-based deep copy, with a shallow-copy fallback for values
+ * structuredClone can't handle (e.g. a context field holding a function or
+ * class instance — not a supported pattern, but shouldn't hard-crash).
+ * `Ctx` is expected to be JSON-serializable anyway (the `persist` option
+ * round-trips it through `JSON.stringify`/`JSON.parse`), so the fallback
+ * path should be rare in practice.
+ */
+function cloneContext<T>(value: T): T {
+  try {
+    return structuredClone(value)
+  } catch {
+    return Array.isArray(value) ? ([...value] as T) : ({ ...value } as T)
   }
 }
 
@@ -207,6 +255,8 @@ function buildSubConfig<TContext extends Ctx>(
 ): MachineConfig<string, string, TContext> {
   return {
     id: regionName,
+    // The MachineRunner constructor below deep-clones `context` itself —
+    // a shallow copy here is enough, no need to clone twice.
     initial: regionConfig.initial,
     context: { ...parentContext },
     states: regionConfig.states as unknown as Record<string, import('./types').StateConfig<string, string, TContext>>,

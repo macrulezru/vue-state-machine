@@ -131,4 +131,37 @@ describe('useWizard', () => {
     expect(onLeaveA).toHaveBeenCalled()
     expect(onEnterB).toHaveBeenCalled()
   })
+
+  it('onLeave/onEnter can write to context via a returned partial, and it is visible on the context ref', async () => {
+    interface Ctx { name?: string; greeting?: string }
+    const stepsWithWrites = [
+      { id: 'a', onLeave: (): Partial<Ctx> => ({ name: 'Alice' }) },
+      { id: 'b', onEnter: (ctx: Ctx): Partial<Ctx> => ({ greeting: `Hi ${ctx.name}` }) },
+    ]
+    const { result } = withSetup(() => useWizard<Ctx>(stepsWithWrites))
+    expect(result.context.value).toEqual({})
+    await result.next()
+    expect(result.context.value).toEqual({ name: 'Alice', greeting: 'Hi Alice' })
+  })
+
+  it('canProceed receives the real, live wizard context — not always {}', async () => {
+    interface Ctx { email?: string }
+    const seen: (Ctx | undefined)[] = []
+    const stepsWithGate = [
+      { id: 'a', onLeave: (): Partial<Ctx> => ({ email: 'a@b.com' }) },
+      { id: 'b', canProceed: (ctx: Ctx) => { seen.push(ctx); return !!ctx.email } },
+      { id: 'c' },
+    ]
+    const { result } = withSetup(() => useWizard<Ctx>(stepsWithGate))
+    await result.next() // a -> b, onLeave sets email
+    const moved = await result.next() // b -> c, canProceed reads email
+    expect(seen).toEqual([{ email: 'a@b.com' }])
+    expect(moved).toBe(true)
+    expect(result.currentStep.value.id).toBe('c')
+  })
+
+  it('a custom id can be set via options.id', () => {
+    const { result } = withSetup(() => useWizard(steps, { id: 'checkout' }))
+    expect(result.currentStep.value.id).toBe('info')
+  })
 })

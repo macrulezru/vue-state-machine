@@ -197,6 +197,29 @@ describe('MachineRunner', () => {
     expect(runner.canTransition('NEXT')).toBe(true)
   })
 
+  it('deep-clones config.context per instance — nested objects are not shared (regression)', () => {
+    const config = {
+      id: 'nested',
+      initial: 'a' as const,
+      context: { user: { name: 'Alice' } },
+      states: { a: {} },
+    }
+    const runner1 = new MachineRunner(config)
+    const runner2 = new MachineRunner(config)
+    ;(runner1.getContext() as { user: { name: string } }).user.name = 'Mutated'
+    expect((runner2.getContext() as { user: { name: string } }).user.name).toBe('Alice')
+    expect((config.context as { user: { name: string } }).user.name).toBe('Alice')
+  })
+
+  it('restore() deep-clones the given context — nested objects are not shared with the caller', () => {
+    const config = { id: 'restore-nested', initial: 'a' as const, states: { a: {} } }
+    const runner = new MachineRunner(config)
+    const snapshotContext = { user: { name: 'Bob' } }
+    runner.restore('a', snapshotContext)
+    ;(runner.getContext() as { user: { name: string } }).user.name = 'Mutated'
+    expect(snapshotContext.user.name).toBe('Bob')
+  })
+
   it('parallel regions start with their initial states', () => {
     const config = {
       id: 'parallel',

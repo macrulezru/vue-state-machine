@@ -8,11 +8,15 @@ export interface WizardStep<TContext extends Ctx = Ctx> {
   label?: string
   component?: Component
   canProceed?: (context: TContext) => boolean | Promise<boolean>
-  onEnter?: (context: TContext) => void
-  onLeave?: (context: TContext) => void
+  /** Return a partial context to merge it in (same shape as a machine `Action`) — e.g. seed a default when entering. Optional; a `void` return changes nothing. */
+  onEnter?: (context: TContext) => void | Partial<TContext>
+  /** Return a partial context to merge it in — the usual place to persist a step's collected data (e.g. form fields) before `canProceed` on the next step reads it. */
+  onLeave?: (context: TContext) => void | Partial<TContext>
 }
 
 export interface WizardOptions {
+  /** Machine id registered in the MachineStore (when VueMachinePlugin is installed) and shown in DevTools. Default: a unique auto-generated id — set this explicitly if you need a stable, predictable id (e.g. to look the wizard up via `useMachineStore().get(id)`). */
+  id?: string
   initialStep?: number
   allowSkip?: boolean
   circular?: boolean
@@ -26,6 +30,8 @@ export interface WizardInstance<TContext extends Ctx = Ctx> {
   isFirst: ComputedRef<boolean>
   isLast: ComputedRef<boolean>
   history: Ref<string[]>
+  /** Accumulated context — whatever `onEnter`/`onLeave` handlers have merged in so far. Read-only; write to it by returning a `Partial<TContext>` from `onEnter`/`onLeave`, same as a machine `Action`. */
+  context: Readonly<Ref<TContext>>
   next(): Promise<boolean>
   prev(): void
   goTo(id: string): Promise<boolean>
@@ -34,6 +40,12 @@ export interface WizardInstance<TContext extends Ctx = Ctx> {
 
 type WizardEvent = string
 type WizardCtx = Ctx
+
+// Every useWizard() needs a distinct machine id — sharing one literal id
+// (as this used to) means two wizards mounted at once silently overwrite
+// each other's MachineStore/DevTools registration. `options.id` lets a
+// caller pick a stable one; otherwise this counter guarantees uniqueness.
+let wizardCounter = 0
 
 function buildWizardMachine(
   steps: WizardStep[],
@@ -64,10 +76,10 @@ function buildWizardMachine(
     }
 
     const entryActions = step.onEnter
-      ? [(ctx: WizardCtx) => { step.onEnter!(ctx) }]
+      ? [(ctx: WizardCtx) => step.onEnter!(ctx)]
       : undefined
     const exitActions = step.onLeave
-      ? [(ctx: WizardCtx) => { step.onLeave!(ctx) }]
+      ? [(ctx: WizardCtx) => step.onLeave!(ctx)]
       : undefined
 
     states[step.id] = {
@@ -78,7 +90,7 @@ function buildWizardMachine(
   }
 
   return defineMachine({
-    id: '__wizard__',
+    id: options.id ?? `__wizard_${++wizardCounter}__`,
     initial: ids[options.initialStep ?? 0] ?? ids[0]!,
     states,
   })
@@ -93,7 +105,7 @@ export function useWizard<TContext extends Ctx = Ctx>(
   }
 
   const machine = buildWizardMachine(steps as WizardStep[], options)
-  const { state, send } = useMachine(machine)
+  const { state, send, context } = useMachine(machine)
 
   const stepMap = new Map(steps.map((s) => [s.id, s]))
   const historyRef = ref<string[]>([steps[options.initialStep ?? 0]!.id])
@@ -108,7 +120,7 @@ export function useWizard<TContext extends Ctx = Ctx>(
     const step = stepMap.get(state.value)!
     if (step.canProceed) {
       try {
-        const ok = await step.canProceed(machine.context as TContext ?? {} as TContext)
+        const ok = await step.canProceed(context.value as TContext)
         if (!ok) return false
       } catch (err) {
         if (import.meta.env?.DEV !== false) {
@@ -138,7 +150,7 @@ export function useWizard<TContext extends Ctx = Ctx>(
       const step = stepMap.get(state.value)!
       if (step.canProceed) {
         try {
-          const ok = await step.canProceed(machine.context as TContext ?? {} as TContext)
+          const ok = await step.canProceed(context.value as TContext)
           if (!ok) return false
         } catch (err) {
           if (import.meta.env?.DEV !== false) {
@@ -171,6 +183,7 @@ export function useWizard<TContext extends Ctx = Ctx>(
     isFirst,
     isLast,
     history: historyRef,
+    context: context as Readonly<Ref<TContext>>,
     next,
     prev,
     goTo,

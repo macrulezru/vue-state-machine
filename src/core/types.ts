@@ -81,6 +81,8 @@ export interface TransitionResult<TState extends string, TContext extends Ctx> {
   nextContext: TContext
   executed: string[]
   changed: boolean
+  /** Union of every action-returned partial during this transition — the actual delta, not the full context. Used to merge parallel-region context changes without clobbering fields the region never touched. */
+  contextPatch: Partial<TContext>
 }
 
 export interface UseMachineOptions {

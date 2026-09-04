@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { withSetup } from '../helpers'
 import { defineMachine } from '../../src/core/defineMachine'
 import { useMachine } from '../../src/composables/useMachine'
@@ -68,5 +68,62 @@ describe('example: parallel editor', () => {
     await result.send('TOGGLE')
     expect(result.matches({ a: 'on' })).toBe(true)
     expect(result.matches({ b: 'on' })).toBe(true)
+  })
+
+  it('regions changing different context fields on the same event do not clobber each other (regression)', async () => {
+    interface EditorCtx { fieldA?: string; fieldB?: string }
+    const editorContext = defineMachine<'editing', 'TOGGLE', EditorCtx>({
+      id: 'editor-context',
+      initial: 'editing',
+      context: { fieldA: 'initial-a', fieldB: 'initial-b' },
+      states: {
+        editing: {
+          parallel: {
+            a: {
+              initial: 'off',
+              states: {
+                off: { on: { TOGGLE: { target: 'on', actions: [() => ({ fieldA: 'set-by-a' })] } } },
+                on: {},
+              },
+            },
+            b: {
+              initial: 'off',
+              states: {
+                off: { on: { TOGGLE: { target: 'on', actions: [() => ({ fieldB: 'set-by-b' })] } } },
+                on: {},
+              },
+            },
+          },
+        },
+      },
+    })
+    const { result } = withSetup(() => useMachine(editorContext))
+    await result.send('TOGGLE')
+    // Before the fix: region "b" (declared/processed last) would overwrite
+    // the whole context with its own stale snapshot, silently reverting
+    // fieldA back to 'initial-a' even though region "a" legitimately set it.
+    expect(result.context.value).toEqual({ fieldA: 'set-by-a', fieldB: 'set-by-b' })
+  })
+
+  it('does not warn about a context conflict when regions touch different fields', async () => {
+    interface EditorCtx { fieldA?: string; fieldB?: string }
+    const spy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const editorContext = defineMachine<'editing', 'TOGGLE', EditorCtx>({
+      id: 'editor-context-2',
+      initial: 'editing',
+      context: {},
+      states: {
+        editing: {
+          parallel: {
+            a: { initial: 'off', states: { off: { on: { TOGGLE: { target: 'on', actions: [() => ({ fieldA: 'x' })] } } }, on: {} } },
+            b: { initial: 'off', states: { off: { on: { TOGGLE: { target: 'on', actions: [() => ({ fieldB: 'y' })] } } }, on: {} } },
+          },
+        },
+      },
+    })
+    const { result } = withSetup(() => useMachine(editorContext))
+    await result.send('TOGGLE')
+    expect(spy).not.toHaveBeenCalled()
+    spy.mockRestore()
   })
 })
