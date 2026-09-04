@@ -6,6 +6,7 @@ import { withSetup } from '../helpers'
 import { defineMachine } from '../../src/core/defineMachine'
 import { useMachine } from '../../src/composables/useMachine'
 import { useSharedMachine } from '../../src/composables/useSharedMachine'
+import { useWizard } from '../../src/composables/useWizard'
 
 const simpleMachine = defineMachine({
   id: 'simple',
@@ -90,6 +91,25 @@ describe('useSharedMachine', () => {
     })
     app.use(VueMachinePlugin)
     app.mount(document.createElement('div'))
+    app.unmount()
+  })
+})
+
+describe('useWizard + MachineStore (id collision regression)', () => {
+  it('two concurrent useWizard() instances register as two distinct store entries, not one overwriting the other', () => {
+    let store: ReturnType<typeof useMachineStore> | undefined
+    const app = createApp({
+      setup() {
+        useWizard([{ id: 'a' }, { id: 'b' }])
+        useWizard([{ id: 'x' }, { id: 'y' }])
+        store = useMachineStore()
+        return () => null
+      },
+      render() { return null },
+    })
+    app.use(VueMachinePlugin)
+    app.mount(document.createElement('div'))
+    expect(store!.getAll().size).toBe(2)
     app.unmount()
   })
 })

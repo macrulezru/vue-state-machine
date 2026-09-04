@@ -64,7 +64,7 @@ npm install vue@>=3.3
 
 ```vue
 <script setup lang="ts">
-import { defineMachine, useMachine } from 'vue-state-machine'
+import { defineMachine, useMachine } from '@macrulez/vue-state-machine'
 
 const trafficLight = defineMachine({
   id: 'traffic',
@@ -296,8 +296,8 @@ const { send } = useMachine(machine, {
 
 ```vue
 <script setup lang="ts">
-import { defineMachine, useMachine } from 'vue-state-machine'
-import type { Action, Guard } from 'vue-state-machine'
+import { defineMachine, useMachine } from '@macrulez/vue-state-machine'
+import type { Action, Guard } from '@macrulez/vue-state-machine'
 
 type Ctx = { attempts: number; error: string | null }
 type Ev  = 'SUBMIT' | 'SUCCESS' | 'FAILURE' | 'RETRY'
@@ -418,13 +418,14 @@ function useWizard<TContext>(
 | `label` | `string?` | Display label |
 | `component` | `Component?` | Vue component to render for this step |
 | `canProceed` | `(ctx) => boolean \| Promise<boolean>` | Gate for `next()` and forward `goTo()`; may be async |
-| `onEnter` | `(ctx) => void` | Called when the wizard enters this step |
-| `onLeave` | `(ctx) => void` | Called when the wizard leaves this step |
+| `onEnter` | `(ctx) => void \| Partial<TContext>` | Called when the wizard enters this step; return a partial to merge it into context |
+| `onLeave` | `(ctx) => void \| Partial<TContext>` | Called when the wizard leaves this step; return a partial to merge it into context — the usual place to persist a step's collected data |
 
 ### `WizardOptions`
 
 | Option | Type | Default | Description |
 |---|---|---|---|
+| `id` | `string?` | auto-generated | Machine id registered in the `MachineStore`/shown in DevTools; set explicitly for a stable, predictable id |
 | `initialStep` | `number` | `0` | Index of the starting step |
 | `allowSkip` | `boolean` | `false` | Skip `canProceed` on forward `goTo()` |
 | `circular` | `boolean` | `false` | `next()` wraps from last step back to first |
@@ -440,6 +441,7 @@ function useWizard<TContext>(
 | `isFirst` | `ComputedRef<boolean>` | `true` on the first step |
 | `isLast` | `ComputedRef<boolean>` | `true` on the last step |
 | `history` | `Ref<string[]>` | IDs of visited steps |
+| `context` | `Readonly<Ref<TContext>>` | Accumulated context — whatever `onEnter`/`onLeave` have merged in so far |
 | `next()` | `Promise<boolean>` | Advance; calls `canProceed` first; returns `false` if blocked |
 | `prev()` | `void` | Go back (no guard) |
 | `goTo(id)` | `Promise<boolean>` | Jump to step by id; respects `canProceed` unless `allowSkip` |
@@ -449,8 +451,8 @@ function useWizard<TContext>(
 
 ```vue
 <script setup lang="ts">
-import { useWizard } from 'vue-state-machine'
-import type { WizardStep } from 'vue-state-machine'
+import { useWizard } from '@macrulez/vue-state-machine'
+import type { WizardStep } from '@macrulez/vue-state-machine'
 import StepInfo    from './StepInfo.vue'
 import StepAddress from './StepAddress.vue'
 import StepPayment from './StepPayment.vue'
@@ -466,6 +468,9 @@ const steps: WizardStep<CheckoutCtx>[] = [
     id: 'info',
     label: 'Your info',
     component: StepInfo,
+    // Populated by StepInfo's own onLeave below before this ever runs on
+    // the *next* step's canProceed check — see "context" in the return
+    // value table above.
     canProceed: (ctx) => !!ctx.name && !!ctx.email,
   },
   {
@@ -473,6 +478,9 @@ const steps: WizardStep<CheckoutCtx>[] = [
     label: 'Delivery',
     component: StepAddress,
     canProceed: (ctx) => !!ctx.address,
+    // Return a partial to merge collected form data into context — e.g. read
+    // from a ref StepAddress updates via v-model, or from an emit it fires.
+    onLeave: (): Partial<CheckoutCtx> => ({ address: addressFieldRef.value }),
   },
   {
     id: 'payment',
@@ -482,14 +490,14 @@ const steps: WizardStep<CheckoutCtx>[] = [
   },
 ]
 
-const { currentStep, progress, isFirst, isLast, next, prev } = useWizard(steps)
+const { currentStep, context, progress, isFirst, isLast, next, prev } = useWizard(steps)
 </script>
 
 <template>
   <div>
     <progress :value="progress" max="1" />
 
-    <component :is="currentStep.component" />
+    <component :is="currentStep.component" :context="context" />
 
     <nav>
       <button :disabled="isFirst" @click="prev">Back</button>
@@ -507,6 +515,7 @@ const { currentStep, progress, isFirst, isLast, next, prev } = useWizard(steps)
 - If it **throws**, the same outcome — `false` is returned, the error is logged to `console.error` in dev mode
 - `prev()` and backward `goTo()` **never** check `canProceed`
 - `allowSkip: true` disables `canProceed` for `goTo()` only; `next()` always checks it
+- `canProceed` receives the wizard's real, live `context` — whatever `onEnter`/`onLeave` have merged into it so far, same object also exposed as `context` on the return value
 
 ---
 
@@ -544,7 +553,7 @@ Install `VueMachinePlugin` to enable the global machine registry (`useMachineSto
 
 ```ts
 import { createApp } from 'vue'
-import { VueMachinePlugin } from 'vue-state-machine'
+import { VueMachinePlugin } from '@macrulez/vue-state-machine'
 import App from './App.vue'
 
 const app = createApp(App)
@@ -575,8 +584,8 @@ The DevTools integration lives in a separate entry point so it never ends up in 
 
 ```ts
 import { createApp } from 'vue'
-import { VueMachinePlugin }  from 'vue-state-machine'
-import { VueMachineDevtools } from 'vue-state-machine/devtools'
+import { VueMachinePlugin }  from '@macrulez/vue-state-machine'
+import { VueMachineDevtools } from '@macrulez/vue-state-machine/devtools'
 import App from './App.vue'
 
 const app = createApp(App)
@@ -591,12 +600,10 @@ app.mount('#app')
 ```
 
 **Panel features:**
-- List of all registered machines (from `MachineStore`)
-- Current state, context as a JSON tree, full transition history
-- "Send Event" button — pick an event type and add a custom payload
-- Timeline: every transition is emitted as a named DevTools timeline event with timestamp and payload
+- Registers a "State Machines" settings panel in Vue DevTools
+- On the DevTools inspector's `visitComponentTree` refresh, emits one timeline event per registered machine (from `MachineStore`) with its current state and context — this is a live snapshot taken each time DevTools inspects the tree, not a push on every individual `send()`; a transition that happens between two inspections isn't captured on its own
 
-> `VueMachinePlugin` must be installed before `VueMachineDevtools`.
+> `VueMachinePlugin` must be installed before `VueMachineDevtools` — it looks up the store via `app._context.provides` and warns (not throws) if the plugin isn't installed yet.
 
 ---
 
@@ -636,7 +643,7 @@ import type {
 
   // Utility
   Ctx,
-} from 'vue-state-machine'
+} from '@macrulez/vue-state-machine'
 ```
 
 ### Generic inference
@@ -684,7 +691,7 @@ const machine = defineMachine<
 
 ```vue
 <script setup lang="ts">
-import { useMachine } from 'vue-state-machine'
+import { useMachine } from '@macrulez/vue-state-machine'
 import { onMounted } from 'vue'
 
 // Snapshot passed from the server via useAsyncData / useState
@@ -759,7 +766,8 @@ WizardInstance (currentStep, progress, isFirst, isLast, history, ...)
 VueMachineDevtools (separate entry point /devtools)
     │  reads MachineStore via app._context.provides
     │  hooks into __VUE_DEVTOOLS_GLOBAL_HOOK__
-    │  emits timeline events per transition
+    │  emits one timeline event per machine on each visitComponentTree poll
+    │  (a live snapshot per inspection, not a push per send())
     ▼
 Vue DevTools browser extension panel "State Machines"
 ```
@@ -768,7 +776,7 @@ Vue DevTools browser extension panel "State Machines"
 
 ## XState v5 migration
 
-`vue-state-machine` is API-compatible with a useful subset of XState v5. Migrating a simple machine typically takes minutes.
+`@macrulez/vue-state-machine` is API-compatible with a useful subset of XState v5. Migrating a simple machine typically takes minutes.
 
 ### API mapping
 
@@ -799,7 +807,7 @@ import { createMachine } from 'xstate'
 const machine = createMachine({ ... })
 
 // After
-import { defineMachine } from 'vue-state-machine'
+import { defineMachine } from '@macrulez/vue-state-machine'
 const machine = defineMachine({ ... })
 ```
 
@@ -821,7 +829,7 @@ const increment = (ctx: { count: number }) => ({ count: ctx.count + 1 })
 import { useMachine } from '@xstate/vue'
 
 // After
-import { useMachine } from 'vue-state-machine'
+import { useMachine } from '@macrulez/vue-state-machine'
 ```
 
 **4. Move async logic from `invoke` into actions:**
@@ -855,8 +863,8 @@ loading: {
 
 | Entry point | Peer deps | Gzip |
 |---|---|---|
-| `vue-state-machine` | `vue ^3.3` | ≤ 4 KB (core) |
-| `vue-state-machine/devtools` | `vue ^3.3`, `@vue/devtools-api` (peer) | separate chunk |
+| `@macrulez/vue-state-machine` | `vue ^3.3` | ≤ 4 KB (core) |
+| `@macrulez/vue-state-machine/devtools` | `vue ^3.3`, `@vue/devtools-api` (peer) | separate chunk |
 
 - Ships as tree-shakeable **ESM** (`dist/index.mjs`) and **CommonJS** (`dist/index.cjs`)
 - `"sideEffects": false` in `package.json` — bundlers can eliminate unused exports
