@@ -26,6 +26,17 @@ Lightweight reactive finite state machines (FSM / statechart) for Vue 3 — decl
 
 ---
 
+## When you'd reach for this
+
+A "Save" button isn't just "clicked" or "not clicked" — it's a whole chain of states (loading, confirming, error, available again), and vue-state-machine describes that chain as a single declaration where transitions are explicit and can't happen outside the rules.
+
+- **A button shouldn't submit twice** — While a save request is still running, clicking again shouldn't fire it a second time. Making "submitting" an explicit state makes a second click simply impossible, instead of relying on a separate check in every handler.
+- **A multi-step checkout with conditional branches** — A checkout step might require payment for some users and skip it for others, and going back isn't always allowed from every step — the whole flow is described in one place instead of conditions and flags scattered across components.
+- **Two independent processes run at the same time** — Loading the data and checking permissions run in parallel and shouldn't interfere with each other, but the final screen depends on how both turn out. Independent processes are described separately, instead of collapsing into one tangled set of flags.
+- **Several boolean state flags contradict each other** — "Loading," "error," "done" — three separate flags, even though only one of them can really be true at a time. States like these are treated as mutually exclusive from the start, instead of relying on nobody forgetting to reset a stale flag somewhere in the code.
+
+---
+
 ## Installation
 
 ```bash
