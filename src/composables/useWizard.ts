@@ -154,7 +154,7 @@ export function useWizard<TContext extends Ctx = Ctx>(
           const ok = await step.canProceed(context.value as TContext)
           if (!ok) return false
         } catch (err) {
-          if (import.meta.env?.DEV !== false) {
+          if (isDevMode()) {
             console.error('[vue-state-machine] useWizard canProceed threw:', err)
           }
           return false
