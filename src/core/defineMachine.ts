@@ -1,11 +1,12 @@
 import type { Ctx, MachineConfig } from './types'
+import { isDevMode } from './isDevMode'
 
 export function defineMachine<
   TState extends string,
   TEvent extends string,
   TContext extends Ctx = Ctx,
 >(config: MachineConfig<TState, TEvent, TContext>): MachineConfig<TState, TEvent, TContext> {
-  if (import.meta.env?.DEV !== false) {
+  if (isDevMode()) {
     validateConfig(config)
   }
   return config

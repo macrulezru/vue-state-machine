@@ -5,6 +5,7 @@ import type {
   SubMachineConfig,
   TransitionResult,
 } from './types'
+import { isDevMode } from './isDevMode'
 
 interface QueuedEvent<TEvent extends string> {
   event: EventObject<TEvent>
@@ -202,7 +203,7 @@ export class MachineRunner<
           const conflictKeys = Object.keys(patch).filter(
             (k) => contextPatches.some((p) => k in p.patch),
           )
-          if (conflictKeys.length > 0 && import.meta.env?.DEV !== false) {
+          if (conflictKeys.length > 0 && isDevMode()) {
             console.warn(
               `[vue-state-machine] Parallel regions context conflict on field(s): ${conflictKeys.join(', ')}. Region "${regionName}" wins (declared last).`,
             )
