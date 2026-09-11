@@ -1,6 +1,7 @@
 import { computed, ref, type Component, type ComputedRef, type Ref } from 'vue'
 import type { Ctx, MachineConfig, StateConfig } from '../core/types'
 import { defineMachine } from '../core/defineMachine'
+import { isDevMode } from '../core/isDevMode'
 import { useMachine } from './useMachine'
 
 export interface WizardStep<TContext extends Ctx = Ctx> {
@@ -123,7 +124,7 @@ export function useWizard<TContext extends Ctx = Ctx>(
         const ok = await step.canProceed(context.value as TContext)
         if (!ok) return false
       } catch (err) {
-        if (import.meta.env?.DEV !== false) {
+        if (isDevMode()) {
           console.error('[vue-state-machine] useWizard canProceed threw:', err)
         }
         return false

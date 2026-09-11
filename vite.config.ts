@@ -6,8 +6,6 @@ export default defineConfig({
   plugins: [
     dts({
       include: ['src'],
-      exclude: ['src/devtools'],
-      rollupTypes: true,
     }),
   ],
   build: {

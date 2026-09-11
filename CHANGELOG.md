@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.4] - 2026-09-11
+
+### Fixed
+
+- The published `dist/index.d.ts` (and `dist/devtools/index.d.ts`, which re-exported from it) shipped as an empty `export {}` — every TypeScript consumer got zero type information for `defineMachine`/`useMachine`/`useWizard`/etc., despite the "Full TypeScript" feature claim. Root cause: `vite.config.ts`'s `dts({ rollupTypes: true })` delegated to API Extractor, which bundles its own internal TypeScript engine (5.4.2) — older than this project's installed TypeScript (5.9.3) — and silently emitted an empty rolled-up declaration file instead of erroring. Fixed by dropping `rollupTypes` (and the now-unnecessary `exclude: ['src/devtools']`) so declarations are emitted per-file via the project's own TypeScript version instead of a bundled, version-mismatched one.
+- Every dev-time diagnostic (`defineMachine`'s config validation, the parallel-region context-conflict warning, `useWizard`'s `canProceed`-threw error log) was gated on `import.meta.env.DEV !== false` — but since this package ships as a pre-built `dist/`, that check gets statically replaced with `false` at *this package's own* `vite build` time (which always runs in production mode) and dead-code-eliminated entirely. In practice, `defineMachine()` never validated anything for any consumer in any environment, and neither warning could ever fire. Replaced with a `process.env.NODE_ENV`-based check (`src/core/isDevMode.ts`), which survives unreplaced into the shipped bundle and is correctly substituted by the *consuming app's* own bundler at its build time — the same fix already used elsewhere in this package family (e.g. `vue-image-kit`'s `isDevMode()`).
+
 ## [0.2.0] - 2026-09-04
 
 ### Fixed
