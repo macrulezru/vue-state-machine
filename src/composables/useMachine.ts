@@ -1,4 +1,4 @@
-import { computed, inject, onMounted, shallowRef, type Ref } from 'vue'
+import { computed, inject, onMounted, onUnmounted, shallowRef, type Ref } from 'vue'
 import type { Ctx, EventObject, MachineConfig, MachineInstance, MachineSnapshot, TransitionRecord, UseMachineOptions } from '../core/types'
 import { MachineRunner } from '../core/MachineRunner'
 import { MACHINE_STORE_KEY } from '../store/MachineStore'
@@ -112,7 +112,10 @@ export function useMachine<
   }
 
   if (store) {
-    store.register(config.id, instance as unknown as MachineInstance<string, string, Ctx>)
+    store.register(config.id, instance as unknown as MachineInstance<string, string, Ctx>, options)
+    onUnmounted(() => {
+      store.unregister(config.id)
+    })
   }
 
   return instance
