@@ -85,8 +85,8 @@ const { state, send } = useMachine(trafficLight)
 A guard blocks the transition once there are already 3 attempts, an action increments the counter and clears the error — the form's logic lives declaratively in one place, not scattered across handlers.
 
 ```ts
-import { defineMachine } from 'vue-state-machine'
-import type { Action, Guard } from 'vue-state-machine'
+import { defineMachine } from '@macrulez/vue-state-machine'
+import type { Action, Guard } from '@macrulez/vue-state-machine'
 
 type Ctx = { attempts: number; error: string | null }
 type Ev = 'SUBMIT' | 'SUCCESS' | 'FAILURE' | 'RETRY'
@@ -118,7 +118,7 @@ export const loginMachine = defineMachine<'idle' | 'loading' | 'error' | 'succes
 `send()` returns a promise that resolves once the transition finishes, `can()` synchronously checks whether an event would fire, `isDone` flips on the final state — all reactive, no manual computed properties.
 
 ```ts
-import { useMachine } from 'vue-state-machine'
+import { useMachine } from '@macrulez/vue-state-machine'
 import { loginMachine } from './machine'
 
 const { state, context, send, can, isDone } = useMachine(loginMachine)
@@ -143,10 +143,10 @@ async function submit() {
 `useWizard` builds the machine from a steps array on its own — `canProceed` blocks `next()` until required fields are filled in, and `progress` comes ready-made.
 
 ```ts
-import { useWizard } from 'vue-state-machine'
-import type { WizardStep } from 'vue-state-machine'
+import { useWizard } from '@macrulez/vue-state-machine'
+import type { WizardStep } from '@macrulez/vue-state-machine'
 
-interface CheckoutCtx {
+type CheckoutCtx = {
   name: string
   email: string
   address: string
