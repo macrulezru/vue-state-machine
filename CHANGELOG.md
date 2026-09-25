@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.7] - 2026-09-25
+
+### Fixed
+
+- The README's code examples still imported the unscoped `vue-state-machine` in five places instead of the real published name `@macrulez/vue-state-machine` — a leftover from before the package was moved under the scope, missed by an earlier pass that fixed the rest of the doc.
+- The Wizards guide's `CheckoutCtx` example declared it with `interface` — TypeScript doesn't give an `interface` the implicit index signature that `Ctx` (`Record<string, unknown>`) needs, so `WizardStep<CheckoutCtx>` never actually type-checked as written. Switched to a `type` alias, matching the pattern already used elsewhere in the same doc.
+
 ## [0.2.4] - 2026-09-11
 
 ### Fixed
